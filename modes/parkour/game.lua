@@ -12,7 +12,6 @@ local hidden = {}
 local players_level = {}
 local times = {
 	map_start = 0,
-
 	generated = {},
 	checkpoint = {},
 	movement = {}
@@ -133,6 +132,8 @@ local function checkBan(player, data, id)
 	elseif bans[id] then
 		bans[id] = false
 		enableSpecMode(player, false)
+	elseif id == 0 then
+		enableSpecMode(player, true)
 	end
 end
 
@@ -158,7 +159,9 @@ end
 onEvent("NewPlayer", function(player)
 	spec_mode[player] = nil
 	in_room[player] = true
+
 	player_count = player_count + 1
+
 	cp_available[player] = 0
 	times.movement[player] = os.time()
 
@@ -291,8 +294,6 @@ onEvent("PlayerWon", function(player)
 
 	victory_count = victory_count + 1
 	victory._last_level[player] = false
-
-
 
 	if victory_count == player_count and not less_time then
 		tfm.exec.setGameTime(5)
@@ -506,7 +507,7 @@ onEvent("ParsedChatCommand", function(player, cmd, quantity, args)
 							not records_admins and
 
 							(string.find(room.lowerName, "review") or
-							 ranks.admin[player]))
+							ranks.admin[player]))
 		if not tribe_cond and not normal_cond then
 			return tfm.exec.chatMessage("<v>[#] <r>You can't toggle review mode in this room.", player)
 		end
@@ -647,49 +648,27 @@ onEvent("PlayerDataUpdated", function(player, data)
 end)
 
 onEvent("GameDataLoaded", function(data)
-	if data.banned then
+	if data.sanction then
+		local oldBans = bans
 		bans = {}
-		for id, value in next, data.banned do
-			if value == 1 or os.time() < value then
-				bans[tonumber(id)] = true
-			end
-		end
-
-		local id, ban
-		for player, pdata in next, players_file do
-			if room.playerList[player] and in_room[player] then
-				id = room.playerList[player].id
-				ban = data.banned[tostring(id)]
-
-				if ban then
-					if ban == 1 then
-						pdata.banned = 2
-					else
-						pdata.banned = ban
-					end
-					savePlayerData(player)
-					sendPacket("common", 2, id .. "\000" .. ban)
-				end
-
-				if pdata.banned and (pdata.banned == 2 or os.time() < pdata.banned) then
-					bans[id] = true
-
-					if pdata.banned == 2 then
-						translatedChatMessage("permbanned", player)
-					else
-						local minutes = math.floor((pdata.banned - os.time()) / 1000 / 60)
-						translatedChatMessage("tempbanned", player, minutes)
-					end
+		for pid, value in pairs(data.sanction) do
+			if value and value.time then
+				if value.time == 1 or value.time == 2 or os.time() < value.time then
+					bans[tonumber(pid)] = true
 				end
 			end
 		end
 
 		for player, data in next, room.playerList do
-			if in_room[player] and bans[data.id] then
-				if AfkInterface.open[player] then
-					AfkInterface:remove(player)
+			if in_room[player] then
+				if bans[data.id] then
+					if AfkInterface.open[player] then
+						AfkInterface:remove(player)
+					end
+					enableSpecMode(player, true)
+				elseif oldBans[data.id] then
+					enableSpecMode(player, false)
 				end
-				enableSpecMode(player, true)
 			end
 		end
 	end

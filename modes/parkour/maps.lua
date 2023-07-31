@@ -341,10 +341,27 @@ onEvent("NewGame", function()
 	end
 end)
 
+local function checkMapBug()
+    for _, player in next, room.playerList do
+        if player.x ~= 0 or player.y ~= 0 then
+            return
+        end
+    end
+    newMap()
+    tfm.exec.chatMessage("<v>[#] <r>Looks like there is an issue with the map, just skipping.", nil)
+end
+
+local mapbug_counter = 0  
 onEvent("Loop", function(elapsed, remaining)
 	-- Changes the map when needed
 	if (is_invalid and os.time() >= is_invalid) or remaining < 500 then
 		newMap()
+	end
+
+	mapbug_counter = mapbug_counter + 1 
+	if mapbug_counter == 10 then
+		checkMapBug()
+		mapbug_counter = 0 
 	end
 end)
 

@@ -25,8 +25,7 @@
 
 
 math.randomseed(os.time())
-
-local data_version = 4
+local data_version = 5
 local room = tfm.get.room
 local links = {
 	donation = "https://a801-luadev.github.io/?redirect=parkour",

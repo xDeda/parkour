@@ -4,6 +4,7 @@ local loaded_leaderboard = false
 leaderboard = {}
 weekleaderboard = {}
 -- {id, name, completed_maps, community}
+weeklyfile = {}
 local default_leaderboard_user = {0, nil, 0, "xx"}
 
 local function leaderboardSort(a, b)
@@ -114,7 +115,8 @@ onEvent("GameDataLoaded", function(data)
 
 		checkPlayersPosition(false)
 	end
-	if data.weekranking then
+
+	if data.weekly then
 		local ts = os.time() --+ 60 * 60 * 1000
 		local now = os.date("*t", ts / 1000)
 		now.wday = now.wday - 1
@@ -123,36 +125,61 @@ onEvent("GameDataLoaded", function(data)
 		end
 
 		local new_reset = os.date("%d/%m/%Y", ts - now.wday * 24 * 60 * 60 * 1000)
-		if new_reset ~= timed_maps.week.last_reset then
-			if new_reset == "28/02/2021" then
-				translatedChatMessage("double_maps_start")
-			elseif new_reset == "07/03/2021" then
-				translatedChatMessage("double_maps_end")
+		if new_reset ~= data.weekly.ts then
+
+			if #weekleaderboard > 2 and weekleaderboard[1][3] > 30 then
+				data.weekly.lw = data.weekly.cw
+				data.weekly.cw = {}
+				data.weekly.cw[tostring(weekleaderboard[1][1])] = true
+				data.weekly.cw[tostring(weekleaderboard[2][1])] = true
+				data.weekly.cw[tostring(weekleaderboard[3][1])] = true
 			end
 
-			if #data.weekranking > 2 and data.weekranking[1][3] > 30 then
-				sendPacket(
-					"common", 4,
-					timed_maps.week.last_reset .. "\000" .. os.date("%d/%m/%Y", ts - 24 * 60 * 60 * 1000) ..
-					"\000" .. data.weekranking[1][4] .. "\000" .. data.weekranking[1][2] .. "\000" .. data.weekranking[1][3] ..
-					"\000" .. data.weekranking[2][4] .. "\000" .. data.weekranking[2][2] .. "\000" .. data.weekranking[2][3] ..
-					"\000" .. data.weekranking[3][4] .. "\000" .. data.weekranking[3][2] .. "\000" .. data.weekranking[3][3]
-				)
-				channelHandler(true) -- force send
-			end
-
-			timed_maps.week.last_reset = new_reset
-			timed_maps.week.next_reset = os.date("%d/%m/%Y", ts + (7 - now.wday) * 24 * 60 * 60 * 1000)
-
-			for player, data in next, players_file do
-				data.week = {0, new_reset}
-			end
-
-			data.weekranking = {}
+			data.weekly.ts = new_reset
+			data.weekly.ranks = {}
 		end
 
-		weekleaderboard = data.weekranking
+		if timed_maps.week.last_reset ~= new_reset then
+			timed_maps.week.last_reset = new_reset
+
+			for player, data in next, players_file do
+				if data.week[2] ~= new_reset then
+					data.week = {0, new_reset}
+				end
+			end
+
+			tfm.exec.chatMessage("<j>The weekly leaderboard has been reset.")
+		end
+
+		weeklyfile = data.weekly
+		weekleaderboard = data.weekly.ranks
 
 		checkPlayersPosition(true)
 	end
 end)
+
+local function in_table(value, tbl)
+	for _, v in ipairs(tbl) do
+		if v == value then
+			return true
+		end
+	end
+	return false
+end
+
+local function checkWeeklyWinners(player, data)
+	local id = tostring(room.playerList[player].id)
+
+	if (not weeklyfile.lw or not weeklyfile.lw[id]) and (not weeklyfile.cw or not weeklyfile.cw[id]) then 
+		return
+	end
+
+	if data.badges[3] ~= 1 then
+		players_file[player].badges[3] = 1
+		NewBadgeInterface:show(player, 3, 1)
+		savePlayerData(player)
+	end
+end
+
+
+onEvent("PlayerDataParsed", checkWeeklyWinners)

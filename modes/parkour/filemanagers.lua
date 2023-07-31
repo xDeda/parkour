@@ -109,6 +109,85 @@ local filemanagers = {
 				objects = {
 					type = "number"
 				}
+			},
+		}
+	}):disableValidityChecks():prepare(),
+
+	["23"] = FileManager.new({
+		type = "dictionary",
+		map = {
+			{
+				name = "sanction",
+				type = "dictionary",
+				objects = {
+					type = "dictionary",
+					map = {
+						{
+							name = "timestamp",
+							type = "number",
+						},
+						{
+							name = "time",
+							type = "number",
+						},
+						{
+							name = "info",
+							type = "string",
+						}
+					}
+				}
+			}
+		}
+	}):disableValidityChecks():prepare(),
+
+	["24"] = FileManager.new({
+		type = "dictionary",
+		map = {
+			{
+				name = "weekly",
+				type = "dictionary",
+				map = {
+					{
+						name = "ranks",
+						type = "array",
+						objects = {
+							type = "array",
+							map = {
+								{
+									type = "number"
+								},
+								{
+									type = "string",
+								},
+								{
+									type = "number"
+								},
+								{
+									type = "string",
+									length = 2
+								}
+							}
+						}
+					},
+					{
+						name = "ts",
+						type = "string"
+					},
+					{
+						name = "cw",
+						type = "dictionary",
+						objects = {
+							type= "boolean"
+						}
+					},
+					{
+						name = "lw",
+						type = "dictionary",
+						objects = {
+							type= "boolean"
+						}
+					}
+				}
 			}
 		}
 	}):disableValidityChecks():prepare()

@@ -18,13 +18,19 @@ local files = {
 
 		- lowmaps     (3)
 		- banned      (3)
+
+		- sanction    (4)
+
+		- weekly      (5)
 	]]
 
 	[1] = 20, -- maps, ranks, chats
 	[2] = 21, -- ranking, weekranking
 	[3] = 22, -- lowmaps, banned
+	[4] = 23, -- sanction
+	[5] = 24 -- weekly
 }
-local total_files = 3
+local total_files = 5
 local file_index = 1
 local file_id = files[file_index]
 local updating = {}
@@ -236,6 +242,14 @@ local data_migrations = {
 		data.v = 4
 
 		data.settings[2] = (data.settings == 1 and 77 or 46)
+	end,
+	[4] = function(player, data)
+		data.v = 5
+
+		data.bancount = 0
+		data.lastsanction = nil
+		data.bannedby = nil
+		--data.playerid = tfm.get.room.playerList[player].id
 	end
 }
 
@@ -328,19 +342,19 @@ onEvent("PlayerDataLoaded", function(player, data)
 	end
 
 	if players_file[player] then
-		local old = players_file[player]
+		local merged = players_file[player]
 		local fields = updating[player]
 		updating[player] = nil
 
 		if not fields or fields == "auto" then
 			if data.report ~= nil then
-				old.report = data.report
+				merged.report = data.report
 			end
 
-			old.kill = data.kill
+			merged.kill = data.kill
 
-			if old.killed ~= data.killed then
-				old.killed = data.killed
+			if merged.killed ~= data.killed then
+				merged.killed = data.killed
 				translatedChatMessage("kill_minutes", player, math.ceil((data.killed - os.time()) / 1000 / 60))
 				if os.time() < data.killed then
 					no_powers[player] = true
@@ -356,8 +370,8 @@ onEvent("PlayerDataLoaded", function(player, data)
 			local p_badges = data.badges
 			for index = 1, #badges do
 				if badges[index].filePriority then
-					if old.badges[index] ~= p_badges[index] then
-						old.badges[index] = p_badges[index]
+					if merged.badges[index] ~= p_badges[index] then
+						merged.badges[index] = p_badges[index]
 						NewBadgeInterface:show(player, index, math.max(p_badges[index], 1))
 					end
 				end
@@ -368,7 +382,7 @@ onEvent("PlayerDataLoaded", function(player, data)
 				if field == "badges" then
 					local p_badges = data.badges
 					for index = 1, #badges do
-						if old.badges[index] ~= p_badges[index] then
+						if merged.badges[index] ~= p_badges[index] then
 							NewBadgeInterface:show(
 								player, index, math.max(p_badges[index], 1)
 							)
@@ -376,14 +390,14 @@ onEvent("PlayerDataLoaded", function(player, data)
 					end
 				end
 
-				old[field] = data[field]
+				merged[field] = data[field]
 			end
 		end
-		eventPlayerDataUpdated(player, data)
+		eventPlayerDataUpdated(player, merged)
 
 		if to_save[player] then
 			to_save[player] = false
-			system.savePlayerData(player, json.encode(old))
+			system.savePlayerData(player, json.encode(merged))
 		end
 		return
 	end
@@ -393,6 +407,7 @@ onEvent("PlayerDataLoaded", function(player, data)
 
 	if room.playerList[player] then
 		players_file[player].commu = room.playerList[player].community
+		players_file[player].playerid = room.playerList[player].id
 	end
 
 	eventPlayerDataParsed(player, data)
@@ -409,17 +424,14 @@ end)
 
 onEvent("FileLoaded", function(id, data)
 	data = filemanagers[id]:load(data)
-	eventGameDataLoaded(data)
-	if data.ranking or data.weekranking then -- the only file that can get written by rooms
-		eventSavingFile(id, data) -- if it is reaching a critical point, it will pause and then save the file
-	end
+	eventGameDataLoaded(data, id)
 end)
 
 onEvent("Loop", function()
 	local now = os.time()
 	if now >= next_file_load then
 		system.loadFile(file_id)
-		next_file_load = now + math.random(60500, 63000)
+		next_file_load = now + math.random(10500, 13000)
 		file_index = file_index % total_files + 1
 		file_id = files[file_index]
 	end
@@ -429,7 +441,7 @@ onEvent("GameStart", function()
 	system.loadFile(file_id)
 	local ts = os.time()
 
-	next_file_load = ts + math.random(60500, 90500)
+	next_file_load = ts + math.random(10500, 15500)
 	file_index = file_index % total_files + 1
 	file_id = files[file_index]
 
@@ -440,7 +452,6 @@ onEvent("GameStart", function()
 		now.wday = 7
 	end
 	timed_maps.week.last_reset = os.date("%d/%m/%Y", ts - now.wday * 24 * 60 * 60 * 1000)
-	timed_maps.week.next_reset = os.date("%d/%m/%Y", ts + (7 - now.wday) * 24 * 60 * 60 * 1000)
 end)
 
 onEvent("NewPlayer", function(player)
